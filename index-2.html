@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Shift Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #15171C;
+    --bg-raised: #1C1F26;
+    --bg-inset: #101216;
+    --line: #2B2F38;
+    --line-soft: #23262E;
+    --text: #EDEEF0;
+    --text-dim: #9AA0AC;
+    --text-faint: #5B616D;
+    --day: #E3A23B;
+    --day-dim: #4A3A20;
+    --night: #5C6FE0;
+    --night-dim: #262C4A;
+    --off: #3A3D45;
+    --off-text: #7A7F8A;
+    --sunday: #D9484B;
+    --radius: 14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, rgba(92,111,224,0.08), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    padding-bottom:48px;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .wrap{max-width:460px; margin:0 auto; padding:20px 16px 0;}
+
+  /* ---- Header ---- */
+  header{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:18px; padding:4px 2px;}
+  header h1{font-size:15px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; margin:0; color:var(--text-dim);}
+  header .settings-btn{
+    background:none; border:1px solid var(--line); color:var(--text-dim);
+    width:34px; height:34px; border-radius:10px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; transition:border-color .15s, color .15s;
+  }
+  header .settings-btn:active{transform:scale(0.94);}
+  header .settings-btn:hover{border-color:var(--text-faint); color:var(--text);}
+
+  /* ---- Today card ---- */
+  .today-card{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px 20px;
+    margin-bottom:14px;
+    position:relative;
+    overflow:hidden;
+  }
+  .today-card::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:3px;
+    background:var(--edge, var(--off));
+  }
+  .today-eyebrow{
+    font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--text-faint); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .today-date{font-size:14px; color:var(--text-dim);}
+  .today-main{display:flex; align-items:center; justify-content:space-between; margin-top:10px;}
+  .today-shift{font-size:34px; font-weight:700; letter-spacing:-0.01em;}
+  .today-shift.is-day{color:var(--day);}
+  .today-shift.is-night{color:var(--night);}
+  .today-shift.is-off{color:var(--off-text);}
+  .today-sub{font-size:12px; color:var(--text-faint); margin-top:2px;}
+
+  .checkin-btn{
+    width:100%; margin-top:18px; padding:15px; border-radius:10px; border:none;
+    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14.5px;
+    letter-spacing:0.02em; cursor:pointer; transition:transform .1s, opacity .15s;
+    background:var(--text); color:var(--bg);
+  }
+  .checkin-btn:active{transform:scale(0.98);}
+  .checkin-btn.checked{
+    background:var(--bg-inset); color:var(--text-dim); border:1px solid var(--line);
+  }
+
+  .override-row{display:flex; gap:8px; margin-top:10px;}
+  .override-row button{
+    flex:1; padding:9px 4px; border-radius:8px; border:1px solid var(--line);
+    background:transparent; color:var(--text-faint); font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.05em; text-transform:uppercase; cursor:pointer;
+    transition:all .15s;
+  }
+  .override-row button.active-day{border-color:var(--day); color:var(--day); background:var(--day-dim);}
+  .override-row button.active-night{border-color:var(--night); color:var(--night); background:var(--night-dim);}
+  .override-row button.active-off{border-color:var(--off-text); color:var(--off-text); background:var(--off);}
+
+  /* ---- Voucher period ---- */
+  .section-label{
+    font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--text-faint); margin:26px 2px 10px; display:flex; justify-content:space-between; align-items:baseline;
+  }
+  .section-label .range{color:var(--text-dim); font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0;}
+
+  .track-card{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 16px 16px;
+  }
+  .track{
+    display:grid; grid-template-columns:repeat(10, 1fr); gap:5px;
+  }
+  .tick{
+    aspect-ratio:1; border-radius:6px; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace; font-size:10px; font-weight:500;
+    cursor:pointer; border:1px solid transparent;
+    color:var(--text-faint);
+    background:var(--bg-inset);
+    transition:transform .1s;
+  }
+  .tick:active{transform:scale(0.9);}
+  .tick.day{background:var(--day-dim); color:var(--day); border-color:rgba(227,162,59,0.35);}
+  .tick.night{background:var(--night-dim); color:var(--night); border-color:rgba(92,111,224,0.35);}
+  .tick.off{background:var(--off); color:var(--off-text); border-color:var(--line);}
+  .tick.today-marker{box-shadow:0 0 0 2px var(--text) inset;}
+  .tick.is-sunday::after{
+    content:""; position:absolute; bottom:2px; left:50%; transform:translateX(-50%);
+    width:3px; height:3px; border-radius:50%; background:var(--sunday);
+  }
+  .tick.future{opacity:0.4;}
+  .tick.missed{
+    background:var(--bg-inset); color:var(--sunday); border-color:rgba(217,72,75,0.5);
+    opacity:1;
+  }
+  .tick.missed::before{
+    content:""; position:absolute; inset:0; border-radius:6px;
+    background:repeating-linear-gradient(135deg, rgba(217,72,75,0.18) 0 3px, transparent 3px 7px);
+  }
+
+  .legend{display:flex; gap:16px; margin-top:14px; padding-top:14px; border-top:1px solid var(--line-soft); font-size:11px; color:var(--text-faint);}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .legend i{width:8px; height:8px; border-radius:3px; display:inline-block;}
+  .legend i.day{background:var(--day);}
+  .legend i.night{background:var(--night);}
+  .legend i.off{background:var(--off-text);}
+  .legend i.sun{background:var(--sunday); border-radius:50%; width:6px; height:6px;}
+
+  /* ---- Stats ---- */
+  .stats-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px;}
+  .stat{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:12px;
+    padding:14px 10px; text-align:center;
+  }
+  .stat .num{font-family:'IBM Plex Mono', monospace; font-size:22px; font-weight:600;}
+  .stat.day .num{color:var(--day);}
+  .stat.night .num{color:var(--night);}
+  .stat.off .num{color:var(--off-text);}
+  .stat .lbl{font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-faint); margin-top:4px;}
+
+  /* ---- Ledger ---- */
+  .ledger-card{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 18px 8px; margin-top:12px;
+  }
+  .ledger-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:13.5px;
+  }
+  .ledger-row:last-child{border-bottom:none;}
+  .ledger-row .lbl{color:var(--text-dim); display:flex; align-items:center; gap:8px;}
+  .ledger-row .lbl i{width:7px; height:7px; border-radius:2px; display:inline-block;}
+  .ledger-row .lbl i.day{background:var(--day);}
+  .ledger-row .lbl i.night{background:var(--night);}
+  .ledger-row .lbl i.sun{background:var(--sunday); border-radius:50%;}
+  .ledger-row .val{font-family:'IBM Plex Mono', monospace; color:var(--text);}
+  .ledger-total{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:16px 0 14px; margin-top:2px;
+  }
+  .ledger-total .lbl{font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint);}
+  .ledger-total .val{font-family:'IBM Plex Mono', monospace; font-size:26px; font-weight:600; color:var(--text);}
+
+  /* ---- Settings drawer ---- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); backdrop-filter:blur(2px);
+    opacity:0; pointer-events:none; transition:opacity .2s; z-index:10;
+  }
+  .overlay.open{opacity:1; pointer-events:auto;}
+  .drawer{
+    position:fixed; bottom:0; left:0; right:0; max-width:460px; margin:0 auto;
+    background:var(--bg-raised); border:1px solid var(--line); border-bottom:none;
+    border-radius:20px 20px 0 0; padding:20px 20px 28px;
+    transform:translateY(100%); transition:transform .25s cubic-bezier(.32,.72,0,1); z-index:11;
+    max-height:85vh; overflow-y:auto;
+  }
+  .drawer.open{transform:translateY(0);}
+  .drawer h2{font-size:16px; margin:0 0 4px; font-weight:600;}
+  .drawer .drawer-sub{font-size:12px; color:var(--text-faint); margin-bottom:18px;}
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--text-faint); margin-bottom:7px;
+  }
+  .field input, .field select{
+    width:100%; background:var(--bg-inset); border:1px solid var(--line); color:var(--text);
+    padding:11px 12px; border-radius:9px; font-family:'IBM Plex Mono', monospace; font-size:14px;
+  }
+  .field input:focus, .field select:focus{outline:none; border-color:var(--text-faint);}
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+  .drawer-close{
+    width:100%; padding:14px; border-radius:10px; border:none; margin-top:6px;
+    background:var(--text); color:var(--bg); font-family:'Space Grotesk'; font-weight:600;
+    font-size:14px; cursor:pointer;
+  }
+  .drawer-note{font-size:11px; color:var(--text-faint); margin-top:14px; line-height:1.5;}
+  .divider{height:1px; background:var(--line-soft); margin:18px 0;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Shift Ledger</h1>
+    <button class="settings-btn" id="settingsBtn" aria-label="Settings">⚙</button>
+  </header>
+
+  <div class="today-card" id="todayCard">
+    <div class="today-eyebrow">
+      <span>Today</span>
+      <span class="today-date mono" id="todayDate"></span>
+    </div>
+    <div class="today-main">
+      <div>
+        <div class="today-shift" id="todayShift">—</div>
+        <div class="today-sub" id="todaySub"></div>
+      </div>
+    </div>
+    <button class="checkin-btn" id="checkinBtn">Check in</button>
+    <div class="override-row" id="overrideRow">
+      <button data-shift="day">Day</button>
+      <button data-shift="night">Night</button>
+      <button data-shift="off">Off</button>
+    </div>
+  </div>
+
+  <div class="section-label">
+    <span>Current voucher</span>
+    <span class="range mono" id="voucherRange"></span>
+  </div>
+  <div class="track-card">
+    <div class="track" id="track"></div>
+    <div class="legend">
+      <span><i class="day"></i>Day</span>
+      <span><i class="night"></i>Night</span>
+      <span><i class="off"></i>Off</span>
+      <span><i class="sun"></i>Sunday</span>
+      <span style="color:var(--sunday);">✕ Missed</span>
+    </div>
+  </div>
+
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat day"><div class="num" id="statDay">0</div><div class="lbl">Day</div></div>
+    <div class="stat night"><div class="num" id="statNight">0</div><div class="lbl">Night</div></div>
+    <div class="stat off"><div class="num" id="statOff">0</div><div class="lbl">Off</div></div>
+  </div>
+  <div class="stats-grid" style="grid-template-columns:1fr;">
+    <div class="stat" style="background:var(--bg-raised);"><div class="num" id="statMissed" style="color:var(--sunday);">0</div><div class="lbl">Missed check-ins (unpaid)</div></div>
+  </div>
+
+  <div class="section-label"><span>Balance</span><span class="range mono">paid shifts only</span></div>
+  <div class="ledger-card">
+    <div class="ledger-row">
+      <span class="lbl"><i class="day"></i>Day shifts</span>
+      <span class="val" id="ledgerDay">0 × 0 = 0</span>
+    </div>
+    <div class="ledger-row">
+      <span class="lbl"><i class="night"></i>Night shifts</span>
+      <span class="val" id="ledgerNight">0 × 0 = 0</span>
+    </div>
+    <div class="ledger-row">
+      <span class="lbl"><i class="sun"></i>Sunday shifts</span>
+      <span class="val" id="ledgerSunday">0 × 0 = 0</span>
+    </div>
+    <div class="ledger-row">
+      <span class="lbl" style="color:var(--sunday);">✕ Missed (unpaid)</span>
+      <span class="val" id="ledgerMissed" style="color:var(--sunday);">0 shifts</span>
+    </div>
+    <div class="ledger-total">
+      <span class="lbl">Total balance</span>
+      <span class="val mono" id="ledgerTotal" style="font-family:'IBM Plex Mono', monospace;">0</span>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <h2>Settings</h2>
+  <div class="drawer-sub">Set your cycle anchor and pay rates. Everything recalculates instantly.</div>
+
+  <div class="field">
+    <label for="anchorDate">Cycle anchor date (a known Day-1)</label>
+    <input type="date" id="anchorDate">
+  </div>
+  <div class="field">
+    <label for="anchorShift">Shift on that anchor date</label>
+    <select id="anchorShift">
+      <option value="day">Day</option>
+      <option value="night">Night</option>
+      <option value="off">Off</option>
+    </select>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="field-row">
+    <div class="field">
+      <label for="rateDay">Day rate</label>
+      <input type="number" id="rateDay" inputmode="decimal" placeholder="0">
+    </div>
+    <div class="field">
+      <label for="rateNight">Night rate</label>
+      <input type="number" id="rateNight" inputmode="decimal" placeholder="0">
+    </div>
+  </div>
+  <div class="field">
+    <label for="rateSunday">Sunday rate (flat, replaces Day/Night rate)</label>
+    <input type="number" id="rateSunday" inputmode="decimal" placeholder="0">
+  </div>
+
+  <div class="drawer-note">Sunday rate applies to any working Sunday, whether it lands as a Day or Night shift in your cycle. Off days are never paid. Tap any tick on the voucher strip to correct a day by hand.</div>
+
+  <button class="drawer-close" id="drawerClose">Done</button>
+</div>
+
+<script>
+(function(){
+  const STORE_KEY = 'shiftLedgerData_v1';
+  const CYCLE = ['day','night','off'];
+
+  function loadData(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return {
+      anchorDate: null,      // 'YYYY-MM-DD' a known reference day
+      anchorShift: 'day',    // shift type on that date
+      rateDay: 0,
+      rateNight: 0,
+      rateSunday: 0,
+      overrides: {},         // { 'YYYY-MM-DD': 'day'|'night'|'off' }
+      checkins: {}           // { 'YYYY-MM-DD': true }
+    };
+  }
+  function saveData(){ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+
+  let data = loadData();
+
+  // ---- date helpers ----
+  function pad(n){ return n<10 ? '0'+n : ''+n; }
+  function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function fromKey(k){ const [y,m,d]=k.split('-').map(Number); return new Date(y, m-1, d); }
+  function startOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+  function isSunday(d){ return d.getDay() === 0; }
+
+  function today(){ return startOfDay(new Date()); }
+
+  // ensure anchor exists — default to today = day 1, first run
+  if(!data.anchorDate){
+    data.anchorDate = toKey(today());
+    data.anchorShift = 'day';
+    saveData();
+  }
+
+  function shiftForDate(d){
+    const key = toKey(d);
+    if(data.overrides[key]) return data.overrides[key];
+    const anchor = startOfDay(fromKey(data.anchorDate));
+    const anchorIdx = CYCLE.indexOf(data.anchorShift);
+    const diff = Math.round((startOfDay(d) - anchor) / 86400000);
+    let idx = (anchorIdx + diff) % 3;
+    if(idx < 0) idx += 3;
+    return CYCLE[idx];
+  }
+
+  // voucher period: starts 21st, ends 20th of next month
+  function voucherRangeFor(d){
+    let start;
+    if(d.getDate() >= 21){
+      start = new Date(d.getFullYear(), d.getMonth(), 21);
+    } else {
+      start = new Date(d.getFullYear(), d.getMonth()-1, 21);
+    }
+    const end = new Date(start.getFullYear(), start.getMonth()+1, 20);
+    return {start, end};
+  }
+
+  const fmtShort = (d) => d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+  const fmtFull = (d) => d.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
+
+  // ---- render ----
+  const edgeColor = {day:'var(--day)', night:'var(--night)', off:'var(--off-text)'};
+  const shiftLabel = {day:'Day', night:'Night', off:'Off'};
+
+  function render(){
+    const t = today();
+    const tKey = toKey(t);
+    const tShift = shiftForDate(t);
+    const tIsSun = isSunday(t);
+
+    // today card
+    document.getElementById('todayDate').textContent = fmtFull(t);
+    const shiftEl = document.getElementById('todayShift');
+    shiftEl.textContent = shiftLabel[tShift] + (tIsSun && tShift !== 'off' ? ' · Sunday' : '');
+    shiftEl.className = 'today-shift is-' + tShift;
+    document.getElementById('todayCard').style.setProperty('--edge', edgeColor[tShift]);
+
+    const overridden = !!data.overrides[tKey];
+    document.getElementById('todaySub').textContent = overridden ? 'Manually set' : 'From cycle';
+
+    const checked = !!data.checkins[tKey];
+    const btn = document.getElementById('checkinBtn');
+    btn.textContent = checked ? '✓ Checked in' : 'Check in';
+    btn.className = 'checkin-btn' + (checked ? ' checked' : '');
+
+    // override row active state
+    document.querySelectorAll('.override-row button').forEach(b=>{
+      b.classList.remove('active-day','active-night','active-off');
+      if(b.dataset.shift === tShift) b.classList.add('active-'+tShift);
+    });
+
+    // voucher track
+    const {start, end} = voucherRangeFor(t);
+    document.getElementById('voucherRange').textContent = fmtShort(start) + ' – ' + fmtShort(end);
+
+    const track = document.getElementById('track');
+    track.innerHTML = '';
+    let counts = {day:0, night:0, off:0};
+    let sundayCount=0, dayCount=0, nightCount=0, missedCount=0;
+
+    let cursor = new Date(start);
+    while(cursor <= end){
+      const key = toKey(cursor);
+      const s = shiftForDate(cursor);
+      const sun = isSunday(cursor);
+      const isPast = cursor < t;
+      const isToday = key === tKey;
+      const checkedIn = !!data.checkins[key];
+      counts[s]++;
+
+      // A working day (day/night) only counts toward pay if checked in.
+      // Past working days without a check-in are "missed" (unpaid).
+      // Today/future working days are "scheduled" until checked in — not yet missed.
+      let missed = false;
+      if(s !== 'off'){
+        if(checkedIn){
+          if(sun){ sundayCount++; }
+          else if(s === 'day'){ dayCount++; }
+          else if(s === 'night'){ nightCount++; }
+        } else if(isPast){
+          missed = true;
+          missedCount++;
+        }
+        // today/future + not checked in yet: scheduled, not counted, not missed
+      }
+
+      const tick = document.createElement('div');
+      let cls = 'tick ' + s;
+      if(sun) cls += ' is-sunday';
+      if(missed) cls += ' missed';
+      if(!isPast && !isToday) cls += ' future';
+      if(isToday) cls += ' today-marker';
+      tick.className = cls;
+      tick.textContent = missed ? '✕' : cursor.getDate();
+      let statusLabel = shiftLabel[s];
+      if(s !== 'off'){
+        statusLabel += checkedIn ? ' — checked in' : (isPast ? ' — missed, unpaid' : ' — scheduled');
+      }
+      tick.title = fmtFull(cursor) + ' — ' + statusLabel;
+      tick.addEventListener('click', ()=> cycleOverride(key));
+      track.appendChild(tick);
+
+      cursor = addDays(cursor, 1);
+    }
+
+    document.getElementById('statDay').textContent = counts.day;
+    document.getElementById('statNight').textContent = counts.night;
+    document.getElementById('statOff').textContent = counts.off;
+    document.getElementById('statMissed').textContent = missedCount;
+
+    const payDay = dayCount * Number(data.rateDay || 0);
+    const payNight = nightCount * Number(data.rateNight || 0);
+    const paySunday = sundayCount * Number(data.rateSunday || 0);
+    const total = payDay + payNight + paySunday;
+
+    document.getElementById('ledgerDay').textContent = `${dayCount} × ${fmtMoney(data.rateDay)} = ${fmtMoney(payDay)}`;
+    document.getElementById('ledgerNight').textContent = `${nightCount} × ${fmtMoney(data.rateNight)} = ${fmtMoney(payNight)}`;
+    document.getElementById('ledgerSunday').textContent = `${sundayCount} × ${fmtMoney(data.rateSunday)} = ${fmtMoney(paySunday)}`;
+    document.getElementById('ledgerMissed').textContent = `${missedCount} shift${missedCount===1?'':'s'}`;
+    document.getElementById('ledgerTotal').textContent = fmtMoney(total);
+  }
+
+  function fmtMoney(n){
+    n = Number(n||0);
+    return n.toLocaleString(undefined, {minimumFractionDigits: n % 1 === 0 ? 0 : 2, maximumFractionDigits:2});
+  }
+
+  function cycleOverride(key){
+    const current = shiftForDate(fromKey(key));
+    const idx = CYCLE.indexOf(current);
+    const next = CYCLE[(idx+1) % 3];
+    data.overrides[key] = next;
+    saveData();
+    render();
+  }
+
+  // ---- check-in ----
+  document.getElementById('checkinBtn').addEventListener('click', ()=>{
+    const key = toKey(today());
+    if(data.checkins[key]) delete data.checkins[key];
+    else data.checkins[key] = true;
+    saveData();
+    render();
+  });
+
+  document.querySelectorAll('.override-row button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const key = toKey(today());
+      data.overrides[key] = b.dataset.shift;
+      saveData();
+      render();
+    });
+  });
+
+  // ---- settings drawer ----
+  const drawer = document.getElementById('drawer');
+  const overlay = document.getElementById('overlay');
+
+  function openDrawer(){
+    document.getElementById('anchorDate').value = data.anchorDate;
+    document.getElementById('anchorShift').value = data.anchorShift;
+    document.getElementById('rateDay').value = data.rateDay || '';
+    document.getElementById('rateNight').value = data.rateNight || '';
+    document.getElementById('rateSunday').value = data.rateSunday || '';
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+  }
+  function closeDrawer(){
+    drawer.classList.remove('open');
+    overlay.classList.remove('open');
+  }
+  document.getElementById('settingsBtn').addEventListener('click', openDrawer);
+  document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+  overlay.addEventListener('click', closeDrawer);
+
+  ['anchorDate','anchorShift','rateDay','rateNight','rateSunday'].forEach(id=>{
+    document.getElementById(id).addEventListener('change', (e)=>{
+      const v = e.target.value;
+      if(id === 'anchorDate') data.anchorDate = v || data.anchorDate;
+      else if(id === 'anchorShift') data.anchorShift = v;
+      else data[id] = v === '' ? 0 : Number(v);
+      saveData();
+      render();
+    });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
